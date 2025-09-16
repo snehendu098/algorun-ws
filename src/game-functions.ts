@@ -1,10 +1,27 @@
+import algosdk from 'algosdk';
 import { SingleStake } from './types';
 
 /**
  * Withdraw function - calculates payout based on stake and current multiplier
  */
-export function withdraw(address: string, stake: SingleStake, multiplier: number): number {
+export async function withdraw(address: string, stake: SingleStake, multiplier: number): Promise<number> {
   const amount = stake.amount * multiplier;
+  const algod = new algosdk.Algodv2('', "https://testnet-api.algonode.cloud", ""); 
+  const senderPrivateKey = algosdk.mnemonicToSecretKey(process.env.SENDER_MNEMONIC || '');
+  const receiver = address;
+
+  //transaction params
+  const params = await algod.getTransactionParams().do();
+  
+  const txn = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
+    sender: senderPrivateKey.addr,
+    receiver: receiver,
+    amount: algosdk.algosToMicroalgos(Math.floor(amount)),//Math.floor(amount), // Amount in microAlgos
+    suggestedParams: params,
+  });
+  const signedTxn = txn.signTxn(senderPrivateKey.sk);
+  const response = await algod.sendRawTransaction(signedTxn).do();
+  const confirmedTxn = await algosdk.waitForConfirmation(algod, response.txid, 4);
   console.log(`Withdraw - Address: ${address}, Stake: ${stake.amount}, Multiplier: ${multiplier}, Payout: ${amount}`);
   return amount;
 }
