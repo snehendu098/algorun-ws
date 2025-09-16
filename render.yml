@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: hono-ws-bun
+    runtime: docker
+    # If your Dockerfile is in repository root; else set dockerfilePath appropriately
+    dockerfilePath: ./Dockerfile
+    buildCommand: bun install --frozen-lockfile
+    # The Dockerfile has CMD ["bun", "src/index.ts"], so we don't need to override startCommand
+    # But if you want to, you can set dockerCommand
+    # dockerCommand: ["bun", "src/index.ts"]
+    envVars:
+      # You can add any required environment variables here.
+      # Example:
+      - key: PORT
+        value: "3000"
+    plan: starter
+    region: oregon
+    healthCheckPath: /
+    # Optional scaling settings
+    scaling:
+      minInstances: 1
+      maxInstances: 3
+      targetCPUPercent: 60
