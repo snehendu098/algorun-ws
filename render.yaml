@@ -16,8 +16,3 @@ services:
     plan: starter
     region: oregon
     healthCheckPath: /
-    # Optional scaling settings
-    scaling:
-      minInstances: 1
-      maxInstances: 3
-      targetCPUPercent: 60
