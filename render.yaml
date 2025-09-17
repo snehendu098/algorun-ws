@@ -1,9 +1,0 @@
-services:
-  - type: web
-    name: hono-ws-bun
-    runtime: docker
-    # If your Dockerfile is in repository root; else set dockerfilePath appropriately
-    dockerfilePath: ./Dockerfile
-    plan: starter
-    region: oregon
-    healthCheckPath: /

@@ -4,7 +4,9 @@
     "dev": "bun run --hot src/index.ts"
   },
   "dependencies": {
+    "@algorandfoundation/algokit-utils": "^9.1.2",
     "algosdk": "^3.4.0",
+    "dotenv": "^17.2.2",
     "hono": "^4.9.7"
   },
   "devDependencies": {

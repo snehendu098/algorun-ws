@@ -1,0 +1,327 @@
+{
+  "version": 3,
+  "sources": [
+    "C:/Users/dipan/OneDrive/DevWorks/Hackathons/algorun-contract/projects/algorun-contract/smart_contracts/algorun_contract/contract.algo.ts"
+  ],
+  "mappings": ";AAEA;;AAAA;;;AAAA;;;;;;AAAA;;;AAAA;;;;AAAA;;;AAKG;;AAAA;AAAA;AAAA;;AAAA;AALH;;;AAAA;;;AAAA;;;AAAA;;;AAAA;;;AAAA;;;AAKG;;;AAAA;;;AALH;;AAAA;;;AAAA;;AAAA;AAAA;AAAA;;;AAKE;;;AAJA;;;;;;;;AAME;;AAAA;AALF;;;;;;;;;AAME;;AAAA;AALF;;;;;;AAME;;AAAA;",
+  "op_pc_offset": 0,
+  "pc_events": {
+    "1": {
+      "subroutine": "@algorandfoundation/algorand-typescript/arc4/index.d.ts::Contract.approvalProgram",
+      "params": {},
+      "block": "main",
+      "stack_in": [],
+      "op": "txn NumAppArgs",
+      "defined_out": [
+        "tmp%0#1"
+      ],
+      "stack_out": [
+        "tmp%0#1"
+      ]
+    },
+    "3": {
+      "op": "bz main_bare_routing@6",
+      "stack_out": []
+    },
+    "6": {
+      "op": "pushbytes 0xaa96fbef // method \"setGameData(string,string,string)void\"",
+      "defined_out": [
+        "Method(setGameData(string,string,string)void)"
+      ],
+      "stack_out": [
+        "Method(setGameData(string,string,string)void)"
+      ]
+    },
+    "12": {
+      "op": "txna ApplicationArgs 0",
+      "defined_out": [
+        "Method(setGameData(string,string,string)void)",
+        "tmp%2#0"
+      ],
+      "stack_out": [
+        "Method(setGameData(string,string,string)void)",
+        "tmp%2#0"
+      ]
+    },
+    "15": {
+      "op": "match main_setGameData_route@3",
+      "stack_out": []
+    },
+    "19": {
+      "block": "main_after_if_else@10",
+      "stack_in": [],
+      "op": "pushint 0 // 0",
+      "defined_out": [
+        "tmp%0#0"
+      ],
+      "stack_out": [
+        "tmp%0#0"
+      ]
+    },
+    "21": {
+      "op": "return",
+      "stack_out": []
+    },
+    "22": {
+      "block": "main_setGameData_route@3",
+      "stack_in": [],
+      "op": "txn OnCompletion",
+      "defined_out": [
+        "tmp%3#0"
+      ],
+      "stack_out": [
+        "tmp%3#0"
+      ]
+    },
+    "24": {
+      "op": "!",
+      "defined_out": [
+        "tmp%4#0"
+      ],
+      "stack_out": [
+        "tmp%4#0"
+      ]
+    },
+    "25": {
+      "error": "OnCompletion is not NoOp",
+      "op": "assert // OnCompletion is not NoOp",
+      "stack_out": []
+    },
+    "26": {
+      "op": "txn ApplicationID",
+      "defined_out": [
+        "tmp%5#0"
+      ],
+      "stack_out": [
+        "tmp%5#0"
+      ]
+    },
+    "28": {
+      "error": "can only call when not creating",
+      "op": "assert // can only call when not creating",
+      "stack_out": []
+    },
+    "29": {
+      "op": "txna ApplicationArgs 1",
+      "defined_out": [
+        "tmp%7#0"
+      ],
+      "stack_out": [
+        "tmp%7#0"
+      ]
+    },
+    "32": {
+      "op": "extract 2 0",
+      "defined_out": [
+        "tmp%8#0"
+      ],
+      "stack_out": [
+        "tmp%8#0"
+      ]
+    },
+    "35": {
+      "op": "txna ApplicationArgs 2",
+      "defined_out": [
+        "tmp%8#0",
+        "tmp%9#0"
+      ],
+      "stack_out": [
+        "tmp%8#0",
+        "tmp%9#0"
+      ]
+    },
+    "38": {
+      "op": "extract 2 0",
+      "defined_out": [
+        "tmp%10#0",
+        "tmp%8#0"
+      ],
+      "stack_out": [
+        "tmp%8#0",
+        "tmp%10#0"
+      ]
+    },
+    "41": {
+      "op": "txna ApplicationArgs 3",
+      "defined_out": [
+        "tmp%10#0",
+        "tmp%11#0",
+        "tmp%8#0"
+      ],
+      "stack_out": [
+        "tmp%8#0",
+        "tmp%10#0",
+        "tmp%11#0"
+      ]
+    },
+    "44": {
+      "op": "extract 2 0",
+      "defined_out": [
+        "tmp%10#0",
+        "tmp%12#0",
+        "tmp%8#0"
+      ],
+      "stack_out": [
+        "tmp%8#0",
+        "tmp%10#0",
+        "tmp%12#0"
+      ]
+    },
+    "47": {
+      "callsub": "smart_contracts/algorun_contract/contract.algo.ts::CrashGame.setGameData",
+      "op": "callsub setGameData",
+      "stack_out": []
+    },
+    "50": {
+      "op": "pushint 1 // 1",
+      "defined_out": [
+        "tmp%0#0"
+      ],
+      "stack_out": [
+        "tmp%0#0"
+      ]
+    },
+    "52": {
+      "op": "return",
+      "stack_out": []
+    },
+    "53": {
+      "block": "main_bare_routing@6",
+      "stack_in": [],
+      "op": "txn OnCompletion",
+      "defined_out": [
+        "tmp%13#0"
+      ],
+      "stack_out": [
+        "tmp%13#0"
+      ]
+    },
+    "55": {
+      "op": "bnz main_after_if_else@10",
+      "stack_out": []
+    },
+    "58": {
+      "op": "txn ApplicationID",
+      "defined_out": [
+        "tmp%14#0"
+      ],
+      "stack_out": [
+        "tmp%14#0"
+      ]
+    },
+    "60": {
+      "op": "!",
+      "defined_out": [
+        "tmp%15#0"
+      ],
+      "stack_out": [
+        "tmp%15#0"
+      ]
+    },
+    "61": {
+      "error": "can only call when creating",
+      "op": "assert // can only call when creating",
+      "stack_out": []
+    },
+    "62": {
+      "op": "pushint 1 // 1",
+      "defined_out": [
+        "tmp%0#0"
+      ],
+      "stack_out": [
+        "tmp%0#0"
+      ]
+    },
+    "64": {
+      "op": "return",
+      "stack_out": []
+    },
+    "65": {
+      "subroutine": "smart_contracts/algorun_contract/contract.algo.ts::CrashGame.setGameData",
+      "params": {
+        "gameid#0": "bytes",
+        "crashAt#0": "bytes",
+        "date#0": "bytes"
+      },
+      "block": "setGameData",
+      "stack_in": [],
+      "op": "proto 3 0"
+    },
+    "68": {
+      "op": "pushbytes \"gameid\"",
+      "defined_out": [
+        "\"gameid\""
+      ],
+      "stack_out": [
+        "\"gameid\""
+      ]
+    },
+    "76": {
+      "op": "frame_dig -3",
+      "defined_out": [
+        "\"gameid\"",
+        "gameid#0 (copy)"
+      ],
+      "stack_out": [
+        "\"gameid\"",
+        "gameid#0 (copy)"
+      ]
+    },
+    "78": {
+      "op": "app_global_put",
+      "stack_out": []
+    },
+    "79": {
+      "op": "pushbytes \"crashAt\"",
+      "defined_out": [
+        "\"crashAt\""
+      ],
+      "stack_out": [
+        "\"crashAt\""
+      ]
+    },
+    "88": {
+      "op": "frame_dig -2",
+      "defined_out": [
+        "\"crashAt\"",
+        "crashAt#0 (copy)"
+      ],
+      "stack_out": [
+        "\"crashAt\"",
+        "crashAt#0 (copy)"
+      ]
+    },
+    "90": {
+      "op": "app_global_put",
+      "stack_out": []
+    },
+    "91": {
+      "op": "pushbytes \"date\"",
+      "defined_out": [
+        "\"date\""
+      ],
+      "stack_out": [
+        "\"date\""
+      ]
+    },
+    "97": {
+      "op": "frame_dig -1",
+      "defined_out": [
+        "\"date\"",
+        "date#0 (copy)"
+      ],
+      "stack_out": [
+        "\"date\"",
+        "date#0 (copy)"
+      ]
+    },
+    "99": {
+      "op": "app_global_put",
+      "stack_out": []
+    },
+    "100": {
+      "retsub": true,
+      "op": "retsub"
+    }
+  }
+}

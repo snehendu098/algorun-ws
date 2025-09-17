@@ -1,0 +1,81 @@
+#pragma version 10
+#pragma typetrack false
+
+// @algorandfoundation/algorand-typescript/arc4/index.d.ts::Contract.approvalProgram() -> uint64:
+main:
+    // smart_contracts/algorun_contract/contract.algo.ts:3
+    // export class CrashGame extends Contract {
+    txn NumAppArgs
+    bz main_bare_routing@6
+    pushbytes 0xaa96fbef // method "setGameData(string,string,string)void"
+    txna ApplicationArgs 0
+    match main_setGameData_route@3
+
+main_after_if_else@10:
+    // smart_contracts/algorun_contract/contract.algo.ts:3
+    // export class CrashGame extends Contract {
+    pushint 0 // 0
+    return
+
+main_setGameData_route@3:
+    // smart_contracts/algorun_contract/contract.algo.ts:8
+    // @abimethod()
+    txn OnCompletion
+    !
+    assert // OnCompletion is not NoOp
+    txn ApplicationID
+    assert // can only call when not creating
+    // smart_contracts/algorun_contract/contract.algo.ts:3
+    // export class CrashGame extends Contract {
+    txna ApplicationArgs 1
+    extract 2 0
+    txna ApplicationArgs 2
+    extract 2 0
+    txna ApplicationArgs 3
+    extract 2 0
+    // smart_contracts/algorun_contract/contract.algo.ts:8
+    // @abimethod()
+    callsub setGameData
+    pushint 1 // 1
+    return
+
+main_bare_routing@6:
+    // smart_contracts/algorun_contract/contract.algo.ts:3
+    // export class CrashGame extends Contract {
+    txn OnCompletion
+    bnz main_after_if_else@10
+    txn ApplicationID
+    !
+    assert // can only call when creating
+    pushint 1 // 1
+    return
+
+
+// smart_contracts/algorun_contract/contract.algo.ts::CrashGame.setGameData(gameid: bytes, crashAt: bytes, date: bytes) -> void:
+setGameData:
+    // smart_contracts/algorun_contract/contract.algo.ts:8-9
+    // @abimethod()
+    // setGameData(gameid: string, crashAt: string, date: string): void {
+    proto 3 0
+    // smart_contracts/algorun_contract/contract.algo.ts:4
+    // gameid = GlobalState<string>();
+    pushbytes "gameid"
+    // smart_contracts/algorun_contract/contract.algo.ts:10
+    // this.gameid.value = gameid;
+    frame_dig -3
+    app_global_put
+    // smart_contracts/algorun_contract/contract.algo.ts:5
+    // crashAt = GlobalState<string>();
+    pushbytes "crashAt"
+    // smart_contracts/algorun_contract/contract.algo.ts:11
+    // this.crashAt.value = crashAt;
+    frame_dig -2
+    app_global_put
+    // smart_contracts/algorun_contract/contract.algo.ts:6
+    // date = GlobalState<string>();
+    pushbytes "date"
+    // smart_contracts/algorun_contract/contract.algo.ts:12
+    // this.date.value = date;
+    frame_dig -1
+    app_global_put
+    retsub
