@@ -1,5 +1,5 @@
-import { SingleStake, GameState } from './types';
-import { withdraw, saveToDB, calculateMultiplier } from './game-functions';
+import { SingleStake, GameState } from "./types";
+import { withdraw, saveToDB, calculateMultiplier } from "./game-functions";
 
 export class GameManager {
   private gameState: GameState;
@@ -7,7 +7,7 @@ export class GameManager {
   private waitTimer: Timer | null = null;
   private endTimer: Timer | null = null;
   private updateTimer: Timer | null = null;
-  private lastSentMultiplier: number = 1.00;
+  private lastSentMultiplier: number = 1.0;
   private clients: Set<any> = new Set();
 
   constructor() {
@@ -16,7 +16,7 @@ export class GameManager {
       startTime: 0,
       endTime: 0,
       crashAt: 0,
-      phase: 'waiting'
+      phase: "waiting",
     };
     this.startWaitingPhase();
   }
@@ -31,49 +31,52 @@ export class GameManager {
 
   private broadcast(message: any) {
     const messageStr = JSON.stringify(message);
-    this.clients.forEach(client => {
+    this.clients.forEach((client) => {
       try {
         client.send(messageStr);
       } catch (error) {
-        console.error('Error sending message to client:', error);
+        console.error("Error sending message to client:", error);
         this.clients.delete(client);
       }
     });
   }
 
   joinGame(address: string, amount: number): boolean {
-    if (this.gameState.phase !== 'waiting') {
+    if (this.gameState.phase !== "waiting") {
       return false; // Cannot join when game is running or ended
     }
 
     const stake: SingleStake = {
       address,
       amount,
-      time: Date.now()
+      time: Date.now(),
     };
 
     this.gameState.players.set(address, stake);
 
     // Create stakes array in client format
-    const stakes = Array.from(this.gameState.players.entries()).map(([addr, stakeData]) => ({
-      address: addr,
-      stake: stakeData.amount
-    }));
+    const stakes = Array.from(this.gameState.players.entries()).map(
+      ([addr, stakeData]) => ({
+        address: addr,
+        stake: stakeData.amount,
+        hasWithdrawn: stakeData.hasWithdrawn || false,
+      })
+    );
 
     this.broadcast({
-      type: 'player_joined',
+      type: "player_joined",
       address,
       amount,
       totalPlayers: this.gameState.players.size,
       stakes: stakes,
-      totalStakeAmount: stakes.reduce((sum, stake) => sum + stake.stake, 0)
+      totalStakeAmount: stakes.reduce((sum, stake) => sum + stake.stake, 0),
     });
 
     return true;
   }
 
   async withdrawPlayer(address: string): Promise<number | null> {
-    if (this.gameState.phase !== 'running') {
+    if (this.gameState.phase !== "running") {
       return null; // Can only withdraw during running phase
     }
 
@@ -90,43 +93,57 @@ export class GameManager {
       this.gameState.crashAt
     );
 
-    const payout = withdraw(address, stake, multiplier);
+    // Calculate payout
+    const payout = stake.amount * multiplier;
 
-    // Remove player from game
-    this.gameState.players.delete(address);
+    // Mark player as withdrawn but keep in game state
+    stake.hasWithdrawn = true;
+    stake.withdrawMultiplier = multiplier;
+    this.gameState.players.set(address, stake);
 
-    // Create updated stakes array in client format
-    const stakes = Array.from(this.gameState.players.entries()).map(([addr, stakeData]) => ({
-      address: addr,
-      stake: stakeData.amount
-    }));
+    // Create updated stakes array in client format (include withdrawn players)
+    const stakes = Array.from(this.gameState.players.entries()).map(
+      ([addr, stakeData]) => ({
+        address: addr,
+        stake: stakeData.amount,
+        hasWithdrawn: stakeData.hasWithdrawn || false,
+      })
+    );
 
+    // Broadcast withdrawal immediately for better UX
     this.broadcast({
-      type: 'player_withdrew',
+      type: "player_withdrew",
       address,
       multiplier,
       payout,
       remainingPlayers: this.gameState.players.size,
       stakes: stakes,
-      totalStakeAmount: stakes.reduce((sum, stake) => sum + stake.stake, 0)
+      totalStakeAmount: stakes.reduce((sum, stake) => sum + stake.stake, 0),
     });
+
+    // Process actual withdrawal transaction asynchronously (don't wait)
+    if (this.gameState.players.size > 0) {
+      withdraw(address, stake, multiplier).catch(error => {
+        console.error(`Error processing withdrawal for ${address}:`, error);
+      });
+    }
 
     return payout;
   }
 
   private generateRandomCrashMultiplier(): number {
     // Generate random number between 1.00 and 5.00
-    return 1.00 + Math.random() * 4.00;
+    return 1.0 + Math.random() * 4.0;
   }
 
   private startWaitingPhase() {
-    this.gameState.phase = 'waiting';
+    this.gameState.phase = "waiting";
     this.gameState.players.clear();
 
     this.broadcast({
-      type: 'waiting_phase',
-      message: 'Waiting for next game',
-      waitTime: 15000
+      type: "waiting_phase",
+      message: "Waiting for next game",
+      waitTime: 15000,
     });
 
     this.waitTimer = setTimeout(() => {
@@ -142,27 +159,30 @@ export class GameManager {
     // If crash is at 5.00, game should last full duration
     // If crash is at 1.00, game should end immediately
     const maxDuration = 10000; // 10 seconds max game duration
-    const gameDuration = ((crashMultiplier - 1.00) / 4.00) * maxDuration;
+    const gameDuration = ((crashMultiplier - 1.0) / 4.0) * maxDuration;
 
     this.gameState = {
       ...this.gameState,
       startTime,
       endTime: startTime + gameDuration,
       crashAt: crashMultiplier,
-      phase: 'running'
+      phase: "running",
     };
 
     // Create stakes array in client format for game start
-    const stakes = Array.from(this.gameState.players.entries()).map(([address, stakeData]) => ({
-      address,
-      stake: stakeData.amount
-    }));
+    const stakes = Array.from(this.gameState.players.entries()).map(
+      ([address, stakeData]) => ({
+        address,
+        stake: stakeData.amount,
+        hasWithdrawn: stakeData.hasWithdrawn || false,
+      })
+    );
 
     this.broadcast({
-      type: 'game_started',
+      type: "game_started",
       stakes: stakes,
       totalPlayers: this.gameState.players.size,
-      totalStakeAmount: stakes.reduce((sum, stake) => sum + stake.stake, 0)
+      totalStakeAmount: stakes.reduce((sum, stake) => sum + stake.stake, 0),
     });
 
     // Start real-time updates
@@ -176,11 +196,11 @@ export class GameManager {
 
   private startRealtimeUpdates() {
     // Reset last sent multiplier for new game
-    this.lastSentMultiplier = 1.00;
+    this.lastSentMultiplier = 1.0;
 
     // Check for multiplier changes every 10ms for precision
     this.updateTimer = setInterval(() => {
-      if (this.gameState.phase === 'running') {
+      if (this.gameState.phase === "running") {
         const currentMultiplier = calculateMultiplier(
           this.gameState.startTime,
           this.gameState.endTime,
@@ -189,18 +209,38 @@ export class GameManager {
         );
         const roundedMultiplier = Math.round(currentMultiplier * 100) / 100; // Round to 2 decimal places
 
+        // Check if we've reached or exceeded the crash point
+        if (roundedMultiplier >= this.gameState.crashAt) {
+          // Send the final crash multiplier
+          this.broadcast({
+            type: "multiplier_update",
+            multiplier: this.gameState.crashAt,
+            timestamp: Date.now(),
+          });
+
+          // Clear the game timer to prevent duplicate endGame calls
+          if (this.gameTimer) {
+            clearTimeout(this.gameTimer);
+            this.gameTimer = null;
+          }
+
+          // End game immediately
+          this.endGame();
+          return;
+        }
+
         // Only send update if multiplier changed by at least 0.01
         if (Math.abs(roundedMultiplier - this.lastSentMultiplier) >= 0.01) {
           this.lastSentMultiplier = roundedMultiplier;
 
           this.broadcast({
-            type: 'multiplier_update',
+            type: "multiplier_update",
             multiplier: parseFloat(roundedMultiplier.toFixed(2)), // Ensure 2 decimal places
-            timestamp: Date.now()
+            timestamp: Date.now(),
           });
         }
       }
-    }, 10); // Check every 10ms for smooth detection
+    }, 100); // Check every 10ms for smooth detection
   }
 
   private stopRealtimeUpdates() {
@@ -211,19 +251,26 @@ export class GameManager {
   }
 
   private async endGame() {
-    this.gameState.phase = 'ended';
+    this.gameState.phase = "ended";
 
     // Stop real-time updates
     this.stopRealtimeUpdates();
 
-    // Save crash data to database
-    await saveToDB(this.gameState.crashAt);
-
+    // Broadcast game ended immediately for better UX
     this.broadcast({
-      type: 'game_ended',
+      type: "game_ended",
       crashAt: this.gameState.crashAt,
-      survivingPlayers: Array.from(this.gameState.players.keys())
+      survivingPlayers: Array.from(this.gameState.players.entries())
+        .filter(([_, stake]) => !stake.hasWithdrawn)
+        .map(([address, _]) => address),
     });
+
+    // Save crash data to database only if there were players in the game
+    if (this.gameState.players.size > 0) {
+      saveToDB(this.gameState.crashAt).catch(error => {
+        console.error('Error saving to database:', error);
+      });
+    }
 
     // Wait 2 seconds then start next waiting phase
     this.endTimer = setTimeout(() => {
@@ -232,8 +279,8 @@ export class GameManager {
   }
 
   getCurrentMultiplier(): number {
-    if (this.gameState.phase !== 'running') {
-      return 1.00;
+    if (this.gameState.phase !== "running") {
+      return 1.0;
     }
 
     return calculateMultiplier(
@@ -245,17 +292,20 @@ export class GameManager {
   }
 
   getGameState() {
-    const stakes = Array.from(this.gameState.players.entries()).map(([address, stakeData]) => ({
-      address,
-      stake: stakeData.amount
-    }));
+    const stakes = Array.from(this.gameState.players.entries()).map(
+      ([address, stakeData]) => ({
+        address,
+        stake: stakeData.amount,
+        hasWithdrawn: stakeData.hasWithdrawn || false,
+      })
+    );
 
     return {
       phase: this.gameState.phase,
       stakes: stakes,
       totalPlayers: this.gameState.players.size,
       totalStakeAmount: stakes.reduce((sum, stake) => sum + stake.stake, 0),
-      currentMultiplier: this.getCurrentMultiplier()
+      currentMultiplier: this.getCurrentMultiplier(),
     };
   }
 

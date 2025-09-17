@@ -21,7 +21,7 @@ export async function withdraw(
     ""
   );
   const senderPrivateKey = algosdk.mnemonicToSecretKey(
-    process.env.SENDER_MNEMONIC || ""
+    process.env.GAME_CREATOR_MNEMONIC || ""
   );
   const receiver = address;
 
