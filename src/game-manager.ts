@@ -1,4 +1,4 @@
-import { SingleStake, GameState } from "./types";
+import { SingleStake, QueuedStake, GameState } from "./types";
 import { withdraw, saveToDB, calculateMultiplier } from "./game-functions";
 import { createHmac } from "crypto";
 
@@ -15,6 +15,7 @@ export class GameManager {
   constructor() {
     this.gameState = {
       players: new Map(),
+      pendingQueue: new Map(),
       startTime: 0,
       endTime: 0,
       crashAt: 0,
@@ -43,38 +44,90 @@ export class GameManager {
     });
   }
 
-  joinGame(address: string, amount: number): boolean {
-    if (this.gameState.phase !== "waiting") {
-      return false; // Cannot join when game is running or ended
+  joinGame(
+    address: string,
+    amount: number,
+    transactionId?: string
+  ): { success: boolean; queued: boolean; message: string } {
+    // Check if player already has a queued bet
+    if (this.gameState.pendingQueue.has(address)) {
+      return {
+        success: false,
+        queued: false,
+        message: "You already have a bet queued for the next round",
+      };
     }
 
-    const stake: SingleStake = {
-      address,
-      amount,
-      time: Date.now(),
+    // If game is in waiting phase, add to current game
+    if (this.gameState.phase === "waiting") {
+      const stake: SingleStake = {
+        address,
+        amount,
+        time: Date.now(),
+      };
+
+      this.gameState.players.set(address, stake);
+
+      // Create stakes array in client format
+      const stakes = Array.from(this.gameState.players.entries()).map(
+        ([addr, stakeData]) => ({
+          address: addr,
+          stake: stakeData.amount,
+          hasWithdrawn: stakeData.hasWithdrawn || false,
+        })
+      );
+
+      this.broadcast({
+        type: "player_joined",
+        address,
+        amount,
+        totalPlayers: this.gameState.players.size,
+        stakes: stakes,
+        totalStakeAmount: stakes.reduce((sum, stake) => sum + stake.stake, 0),
+      });
+
+      return {
+        success: true,
+        queued: false,
+        message: "Successfully joined the current game",
+      };
+    }
+
+    // If game is running or ended, add to queue for next round
+    if (
+      this.gameState.phase === "running" ||
+      this.gameState.phase === "ended"
+    ) {
+      const queuedStake: QueuedStake = {
+        address,
+        amount,
+        time: Date.now(),
+        transactionId,
+      };
+
+      this.gameState.pendingQueue.set(address, queuedStake);
+
+      // Notify all clients about the queued bet
+      this.broadcast({
+        type: "bet_queued",
+        address,
+        amount,
+        queueSize: this.gameState.pendingQueue.size,
+        message: "Your bet has been queued for the next round",
+      });
+
+      return {
+        success: true,
+        queued: true,
+        message: "Your bet has been queued for the next round",
+      };
+    }
+
+    return {
+      success: false,
+      queued: false,
+      message: "Unable to place bet at this time",
     };
-
-    this.gameState.players.set(address, stake);
-
-    // Create stakes array in client format
-    const stakes = Array.from(this.gameState.players.entries()).map(
-      ([addr, stakeData]) => ({
-        address: addr,
-        stake: stakeData.amount,
-        hasWithdrawn: stakeData.hasWithdrawn || false,
-      })
-    );
-
-    this.broadcast({
-      type: "player_joined",
-      address,
-      amount,
-      totalPlayers: this.gameState.players.size,
-      stakes: stakes,
-      totalStakeAmount: stakes.reduce((sum, stake) => sum + stake.stake, 0),
-    });
-
-    return true;
   }
 
   async withdrawPlayer(address: string): Promise<number | null> {
@@ -133,15 +186,59 @@ export class GameManager {
     return 1.0 + Math.random() * 4.0;
   }
 
+  private processPendingQueue() {
+    if (this.gameState.pendingQueue.size === 0) return;
+
+    // Process all queued bets
+    const processedBets: Array<{ address: string; amount: number }> = [];
+
+    this.gameState.pendingQueue.forEach((queuedStake, address) => {
+      const stake: SingleStake = {
+        address: queuedStake.address,
+        amount: queuedStake.amount,
+        time: Date.now(),
+      };
+
+      this.gameState.players.set(address, stake);
+      processedBets.push({ address, amount: queuedStake.amount });
+    });
+
+    // Clear the queue
+    this.gameState.pendingQueue.clear();
+
+    // Create stakes array in client format
+    const stakes = Array.from(this.gameState.players.entries()).map(
+      ([addr, stakeData]) => ({
+        address: addr,
+        stake: stakeData.amount,
+        hasWithdrawn: stakeData.hasWithdrawn || false,
+      })
+    );
+
+    // Notify clients about processed queue
+    this.broadcast({
+      type: "queue_processed",
+      processedBets,
+      totalPlayers: this.gameState.players.size,
+      stakes: stakes,
+      totalStakeAmount: stakes.reduce((sum, stake) => sum + stake.stake, 0),
+      message: `${processedBets.length} queued bet(s) have been added to the game`,
+    });
+  }
+
   private startWaitingPhase() {
     this.gameState.phase = "waiting";
     this.gameState.players.clear();
     this.currentDisplayMultiplier = 1.0; // Reset display multiplier
 
+    // Process any pending queued bets first
+    this.processPendingQueue();
+
     this.broadcast({
       type: "waiting_phase",
       message: "Waiting for next game",
       waitTime: 15000,
+      queueSize: this.gameState.pendingQueue.size,
     });
 
     this.waitTimer = setTimeout(() => {
@@ -291,12 +388,21 @@ export class GameManager {
       })
     );
 
+    const queuedBets = Array.from(this.gameState.pendingQueue.entries()).map(
+      ([address, queueData]) => ({
+        address,
+        amount: queueData.amount,
+      })
+    );
+
     return {
       phase: this.gameState.phase,
       stakes: stakes,
       totalPlayers: this.gameState.players.size,
       totalStakeAmount: stakes.reduce((sum, stake) => sum + stake.stake, 0),
       currentMultiplier: this.getCurrentMultiplier(),
+      queuedBets: queuedBets,
+      queueSize: this.gameState.pendingQueue.size,
     };
   }
 

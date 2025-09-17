@@ -45,11 +45,12 @@ export default {
 
         switch (data.type) {
           case 'join_game':
-            const success = gameManager.joinGame(data.address, data.amount)
+            const result = gameManager.joinGame(data.address, data.amount, data.transactionId)
             ws.send(JSON.stringify({
               type: 'join_result',
-              success,
-              message: success ? 'Joined game successfully' : 'Cannot join game at this time'
+              success: result.success,
+              queued: result.queued,
+              message: result.message
             }))
             break
 
