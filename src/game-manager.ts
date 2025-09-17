@@ -1,5 +1,6 @@
 import { SingleStake, GameState } from "./types";
 import { withdraw, saveToDB, calculateMultiplier } from "./game-functions";
+import { createHmac } from "crypto";
 
 export class GameManager {
   private gameState: GameState;
@@ -8,6 +9,7 @@ export class GameManager {
   private endTimer: Timer | null = null;
   private updateTimer: Timer | null = null;
   private lastSentMultiplier: number = 1.0;
+  private currentDisplayMultiplier: number = 1.0;
   private clients: Set<any> = new Set();
 
   constructor() {
@@ -85,13 +87,8 @@ export class GameManager {
       return null; // Player not found
     }
 
-    const currentTime = Date.now();
-    const multiplier = calculateMultiplier(
-      this.gameState.startTime,
-      this.gameState.endTime,
-      currentTime,
-      this.gameState.crashAt
-    );
+    // Use the current display multiplier instead of calculating based on time
+    const multiplier = this.currentDisplayMultiplier;
 
     // Calculate payout
     const payout = stake.amount * multiplier;
@@ -139,6 +136,7 @@ export class GameManager {
   private startWaitingPhase() {
     this.gameState.phase = "waiting";
     this.gameState.players.clear();
+    this.currentDisplayMultiplier = 1.0; // Reset display multiplier
 
     this.broadcast({
       type: "waiting_phase",
@@ -155,16 +153,10 @@ export class GameManager {
     const crashMultiplier = this.generateRandomCrashMultiplier();
     const startTime = Date.now();
 
-    // Calculate game duration based on crash multiplier
-    // If crash is at 5.00, game should last full duration
-    // If crash is at 1.00, game should end immediately
-    const maxDuration = 10000; // 10 seconds max game duration
-    const gameDuration = ((crashMultiplier - 1.0) / 4.0) * maxDuration;
-
     this.gameState = {
       ...this.gameState,
       startTime,
-      endTime: startTime + gameDuration,
+      endTime: 0, // Not used anymore since we control timing via multiplier progression
       crashAt: crashMultiplier,
       phase: "running",
     };
@@ -185,34 +177,24 @@ export class GameManager {
       totalStakeAmount: stakes.reduce((sum, stake) => sum + stake.stake, 0),
     });
 
-    // Start real-time updates
+    // Start real-time updates - this will control game ending
     this.startRealtimeUpdates();
 
-    // End the game when crash time is reached
-    this.gameTimer = setTimeout(() => {
-      this.endGame();
-    }, gameDuration);
+    // Remove the conflicting game timer - let multiplier progression control the end
   }
 
   private startRealtimeUpdates() {
     // Reset last sent multiplier for new game
     this.lastSentMultiplier = 1.0;
+    this.currentDisplayMultiplier = 1.0;
 
     const updateMultiplier = () => {
       if (this.gameState.phase !== "running") {
         return;
       }
 
-      const currentMultiplier = calculateMultiplier(
-        this.gameState.startTime,
-        this.gameState.endTime,
-        Date.now(),
-        this.gameState.crashAt
-      );
-      const roundedMultiplier = Math.round(currentMultiplier * 100) / 100; // Round to 2 decimal places
-
       // Check if we've reached or exceeded the crash point
-      if (roundedMultiplier >= this.gameState.crashAt) {
+      if (this.currentDisplayMultiplier >= this.gameState.crashAt) {
         // Send the final crash multiplier
         this.broadcast({
           type: "multiplier_update",
@@ -220,36 +202,37 @@ export class GameManager {
           timestamp: Date.now(),
         });
 
-        // Clear the game timer to prevent duplicate endGame calls
-        if (this.gameTimer) {
-          clearTimeout(this.gameTimer);
-          this.gameTimer = null;
-        }
-
         // End game immediately
         this.endGame();
         return;
       }
 
-      // Send update
-      this.lastSentMultiplier = roundedMultiplier;
-
+      // Send current multiplier update
       this.broadcast({
         type: "multiplier_update",
-        multiplier: parseFloat(roundedMultiplier.toFixed(2)), // Ensure 2 decimal places
+        multiplier: parseFloat(this.currentDisplayMultiplier.toFixed(2)),
         timestamp: Date.now(),
       });
 
-      // Calculate next update interval based on current multiplier
-      // 1-2: 1000ms, 2-3: 500ms, 3-4: 250ms, 4-5: 125ms, etc.
-      const baseInterval = 1500; // 1 second for 1-2 range
-      const currentInterval = Math.max(
-        50,
-        baseInterval / Math.pow(2, Math.floor(roundedMultiplier) - 1)
+      // Calculate increment and next interval based on current multiplier level
+      const multiplierLevel = Math.floor(this.currentDisplayMultiplier);
+
+      // Time intervals: 1-2: 10s, 2-3: 5s, 3-4: 2.5s, etc.
+      const baseInterval = 10000; // 10 seconds for 1-2 range
+      const levelDuration = baseInterval / Math.pow(2, multiplierLevel - 1);
+
+      // Calculate increment per update (0.01 increments)
+      const updatesPerLevel = levelDuration / 100; // Update every 100ms
+      const incrementPerUpdate = 1.0 / updatesPerLevel;
+
+      // Increment the multiplier
+      this.currentDisplayMultiplier = Math.min(
+        this.currentDisplayMultiplier + incrementPerUpdate,
+        this.gameState.crashAt
       );
 
-      // Schedule next update with exponentially decreasing interval
-      this.updateTimer = setTimeout(updateMultiplier, currentInterval);
+      // Schedule next update every 100ms
+      this.updateTimer = setTimeout(updateMultiplier, 100);
     };
 
     // Start the first update
@@ -296,12 +279,7 @@ export class GameManager {
       return 1.0;
     }
 
-    return calculateMultiplier(
-      this.gameState.startTime,
-      this.gameState.endTime,
-      Date.now(),
-      this.gameState.crashAt
-    );
+    return this.currentDisplayMultiplier;
   }
 
   getGameState() {
