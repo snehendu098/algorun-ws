@@ -2,7 +2,7 @@ import algosdk from "algosdk";
 import { SingleStake } from "./types";
 import { AlgorandClient } from "@algorandfoundation/algokit-utils";
 import { CrashGameFactory } from "../contract/algorun_contract/CrashGameClient";
-import { randomUUID, UUID } from "crypto";
+import { randomUUID } from "crypto";
 import dotenv from "dotenv";
 dotenv.config();
 

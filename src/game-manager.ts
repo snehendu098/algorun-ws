@@ -123,7 +123,7 @@ export class GameManager {
 
     // Process actual withdrawal transaction asynchronously (don't wait)
     if (this.gameState.players.size > 0) {
-      withdraw(address, stake, multiplier).catch(error => {
+      withdraw(address, stake, multiplier).catch((error) => {
         console.error(`Error processing withdrawal for ${address}:`, error);
       });
     }
@@ -198,54 +198,67 @@ export class GameManager {
     // Reset last sent multiplier for new game
     this.lastSentMultiplier = 1.0;
 
-    // Check for multiplier changes every 10ms for precision
-    this.updateTimer = setInterval(() => {
-      if (this.gameState.phase === "running") {
-        const currentMultiplier = calculateMultiplier(
-          this.gameState.startTime,
-          this.gameState.endTime,
-          Date.now(),
-          this.gameState.crashAt
-        );
-        const roundedMultiplier = Math.round(currentMultiplier * 100) / 100; // Round to 2 decimal places
-
-        // Check if we've reached or exceeded the crash point
-        if (roundedMultiplier >= this.gameState.crashAt) {
-          // Send the final crash multiplier
-          this.broadcast({
-            type: "multiplier_update",
-            multiplier: this.gameState.crashAt,
-            timestamp: Date.now(),
-          });
-
-          // Clear the game timer to prevent duplicate endGame calls
-          if (this.gameTimer) {
-            clearTimeout(this.gameTimer);
-            this.gameTimer = null;
-          }
-
-          // End game immediately
-          this.endGame();
-          return;
-        }
-
-        // Only send update if multiplier changed by at least 0.01
-        if (Math.abs(roundedMultiplier - this.lastSentMultiplier) >= 0.01) {
-          this.lastSentMultiplier = roundedMultiplier;
-
-          this.broadcast({
-            type: "multiplier_update",
-            multiplier: parseFloat(roundedMultiplier.toFixed(2)), // Ensure 2 decimal places
-            timestamp: Date.now(),
-          });
-        }
+    const updateMultiplier = () => {
+      if (this.gameState.phase !== "running") {
+        return;
       }
-    }, 100); // Check every 10ms for smooth detection
+
+      const currentMultiplier = calculateMultiplier(
+        this.gameState.startTime,
+        this.gameState.endTime,
+        Date.now(),
+        this.gameState.crashAt
+      );
+      const roundedMultiplier = Math.round(currentMultiplier * 100) / 100; // Round to 2 decimal places
+
+      // Check if we've reached or exceeded the crash point
+      if (roundedMultiplier >= this.gameState.crashAt) {
+        // Send the final crash multiplier
+        this.broadcast({
+          type: "multiplier_update",
+          multiplier: this.gameState.crashAt,
+          timestamp: Date.now(),
+        });
+
+        // Clear the game timer to prevent duplicate endGame calls
+        if (this.gameTimer) {
+          clearTimeout(this.gameTimer);
+          this.gameTimer = null;
+        }
+
+        // End game immediately
+        this.endGame();
+        return;
+      }
+
+      // Send update
+      this.lastSentMultiplier = roundedMultiplier;
+
+      this.broadcast({
+        type: "multiplier_update",
+        multiplier: parseFloat(roundedMultiplier.toFixed(2)), // Ensure 2 decimal places
+        timestamp: Date.now(),
+      });
+
+      // Calculate next update interval based on current multiplier
+      // 1-2: 1000ms, 2-3: 500ms, 3-4: 250ms, 4-5: 125ms, etc.
+      const baseInterval = 1500; // 1 second for 1-2 range
+      const currentInterval = Math.max(
+        50,
+        baseInterval / Math.pow(2, Math.floor(roundedMultiplier) - 1)
+      );
+
+      // Schedule next update with exponentially decreasing interval
+      this.updateTimer = setTimeout(updateMultiplier, currentInterval);
+    };
+
+    // Start the first update
+    updateMultiplier();
   }
 
   private stopRealtimeUpdates() {
     if (this.updateTimer) {
-      clearInterval(this.updateTimer);
+      clearTimeout(this.updateTimer);
       this.updateTimer = null;
     }
   }
@@ -267,8 +280,8 @@ export class GameManager {
 
     // Save crash data to database only if there were players in the game
     if (this.gameState.players.size > 0) {
-      saveToDB(this.gameState.crashAt).catch(error => {
-        console.error('Error saving to database:', error);
+      saveToDB(this.gameState.crashAt).catch((error) => {
+        console.error("Error saving to database:", error);
       });
     }
 
