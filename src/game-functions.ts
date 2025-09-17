@@ -31,7 +31,7 @@ export async function withdraw(
   const txn = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
     sender: senderPrivateKey.addr,
     receiver: receiver,
-    amount: algosdk.algosToMicroalgos(Math.floor(amount)), //Math.floor(amount), // Amount in microAlgos
+    amount: algosdk.algosToMicroalgos(amount),
     suggestedParams: params,
   });
   const signedTxn = txn.signTxn(senderPrivateKey.sk);
